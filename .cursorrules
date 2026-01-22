@@ -1,0 +1,1073 @@
+# TweetLingo Cursor AI Rules
+
+> Microlearning-based language learning from X (Twitter) tweets
+> Version: 1.0 | Updated: 2026-01-22
+
+---
+
+## 1. PROJECT CONTEXT
+
+### Service Identity
+- **Name**: TweetLingo
+- **Core Concept**: Extract and learn vocabulary from X tweets with automatic word analysis, translations, and Notion integration
+- **Target Users**: Language learners who actively use X/Twitter (English, Japanese, Chinese ↔ Korean)
+- **Key Value**: Context-based vocabulary learning through real tweet examples (3-10 minute microlearning sessions)
+
+### Development Phases
+**Phase 1 (MVP - Current Focus)**
+- Tweet URL input and analysis
+- Automatic word extraction (Gemini + LingvaNex)
+- Basic web UI with responsive design
+- Manual Notion saving
+
+**Phase 2 (Extensions)**
+- iOS Share Extension
+- Chrome Extension
+- Auto-save and filtering features
+
+**Phase 3 (Advanced)**
+- Review notifications
+- Learning statistics
+- Voice pronunciation
+
+### Performance Targets
+- Tweet analysis: **< 2 seconds**
+- Word extraction accuracy: **> 90%**
+- Notion save: **< 3 seconds**
+- App loading: **< 1 second**
+
+---
+
+## 2. TECHNOLOGY STACK
+
+### Frontend Stack
+```json
+{
+  "next": "15.2.x",
+  "react": "19.0.x",
+  "typescript": "5.7.x",
+  "tailwindcss": "4.1.18",
+  "@tanstack/react-query": "^5.x",
+  "zustand": "^5.0.x",
+  "framer-motion": "^11.11.x"
+}
+```
+
+**Critical Rules:**
+- ✅ Use Next.js 15.2 **App Router** (not Pages Router)
+- ✅ Default to **React 19 Server Components** unless interactivity required
+- ✅ Client Components only when: state, effects, browser APIs, or event handlers needed
+- ✅ TypeScript strict mode enabled - no `any` types
+- ✅ Tailwind CSS utility-first approach
+
+### Backend Stack
+```json
+{
+  "prisma": "^6.x",
+  "@prisma/client": "^6.x",
+  "@auth/core": "^0.37.x",
+  "next-auth": "^5.0.0-beta",
+  "zod": "^3.x"
+}
+```
+
+**Critical Rules:**
+- ✅ Prisma ORM 6 with Neon adapter for Vercel Postgres
+- ✅ Auth.js v5 for authentication (not v4)
+- ✅ Zod for all API request/response validation
+- ✅ API Routes in `app/api/` directory
+
+### External APIs
+- **Google Gemini 2.0 Flash**: NLP, word extraction, POS tagging
+- **X API v2**: Tweet content extraction (Read permissions only)
+- **Free Dictionary API**: Word definitions and pronunciations
+- **Notion API v1**: User vocabulary sync (OAuth 2.0)
+
+---
+
+## 3. ARCHITECTURE PATTERNS
+
+### File Organization
+```
+app/
+├── (auth)/               # Auth route group
+│   ├── login/
+│   └── signup/
+├── (main)/               # Main app route group
+│   ├── analyze/          # Tweet analysis
+│   ├── vocabulary/       # Saved words
+│   └── settings/         # User settings
+├── api/                  # API routes
+│   ├── auth/
+│   ├── tweets/
+│   ├── words/
+│   └── notion/
+├── layout.tsx            # Root layout
+└── page.tsx              # Homepage
+
+components/
+├── ui/                   # Reusable UI components
+│   ├── button.tsx
+│   ├── card.tsx
+│   ├── input.tsx
+│   └── modal.tsx
+├── features/             # Feature-specific components
+│   ├── tweet-analyzer/
+│   ├── vocabulary/
+│   └── notion/
+└── layout/               # Layout components
+    ├── header.tsx
+    └── footer.tsx
+
+lib/
+├── api/                  # API clients
+│   ├── gemini.ts
+│   ├── x-api.ts
+│   ├── dictionary.ts
+│   └── notion.ts
+├── db/                   # Database utilities
+│   ├── prisma.ts
+│   └── queries/
+├── hooks/                # Custom React hooks
+├── utils/                # Utility functions
+└── types/                # TypeScript types
+
+prisma/
+├── schema.prisma
+├── migrations/
+└── seed.ts
+```
+
+### Component Design Rules
+
+**Server Components (Default)**
+```tsx
+// ✅ GOOD: Server Component
+export default async function VocabularyPage() {
+  const session = await auth()
+  const words = await getVocabulary(session.user.id)
+  
+  return (
+    <Suspense fallback={<LoadingSkeleton />}>
+      <VocabularyList words={words} />
+    </Suspense>
+  )
+}
+```
+
+**Client Components (When Needed)**
+```tsx
+// ✅ GOOD: Client Component with 'use client'
+'use client'
+
+import { useState } from 'react'
+
+export function TweetInput() {
+  const [url, setUrl] = useState('')
+  // ... interactive logic
+}
+```
+
+**❌ Bad Patterns:**
+```tsx
+// ❌ BAD: Unnecessary 'use client' for static content
+'use client'
+export function StaticCard({ title }: Props) {
+  return <div>{title}</div>
+}
+
+// ❌ BAD: Using any type
+function process(data: any) { }
+
+// ❌ BAD: Inline function in JSX
+<button onClick={() => handleClick(id)}>
+```
+
+### Database Schema (Prisma)
+
+**Core Models:**
+```prisma
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  words         Word[]
+  tweets        Tweet[]
+  notionIntegration NotionIntegration?
+  settings      UserSettings?
+}
+
+model Word {
+  id            String       @id @default(cuid())
+  lemma         String       // finish
+  original      String       // finished
+  language      Language     // EN, JA, ZH
+  partOfSpeech  PartOfSpeech // NOUN, VERB, ADJECTIVE, ADVERB
+  translation   String
+  ipaNotation   String?
+  hangulNotation String?
+  example       String       @db.Text
+  status        WordStatus   @default(LEARNING)
+  userId        String
+  tweetId       String?
+  
+  user          User         @relation(...)
+  tweet         Tweet?       @relation(...)
+  
+  @@index([userId])
+  @@index([language])
+  @@index([status])
+}
+
+enum Language { EN JA ZH KO }
+enum PartOfSpeech { NOUN VERB ADJECTIVE ADVERB }
+enum WordStatus { LEARNING REVIEW MASTERED }
+```
+
+**Indexing Strategy:**
+- Always index foreign keys (userId, tweetId)
+- Index frequently queried fields (language, status, savedAt)
+- Use compound indexes for common filter combinations
+
+### API Design
+
+**RESTful Conventions:**
+```typescript
+// ✅ GOOD: Proper API route structure
+// app/api/tweets/analyze/route.ts
+export async function POST(request: NextRequest) {
+  const session = await auth()
+  if (!session?.user) {
+    return NextResponse.json(
+      { error: 'UNAUTHORIZED', message: 'Authentication required' },
+      { status: 401 }
+    )
+  }
+  
+  const body = await request.json()
+  const { url } = analyzeSchema.parse(body) // Zod validation
+  
+  const result = await analyzeTweet(url, session.user.id)
+  return NextResponse.json(result, { status: 200 })
+}
+```
+
+**Error Response Format:**
+```typescript
+{
+  error: "INVALID_URL" | "RATE_LIMIT_EXCEEDED" | "API_ERROR",
+  message: string,
+  retryAfter?: number // for rate limits
+}
+```
+
+**API Endpoints:**
+- POST `/api/tweets/analyze` - Analyze tweet
+- GET `/api/words` - List words with filters
+- POST `/api/words/save` - Save words
+- PATCH `/api/words/:id` - Update word status
+- POST `/api/notion/connect` - OAuth flow
+- POST `/api/notion/sync` - Manual sync
+
+---
+
+## 4. DESIGN SYSTEM
+
+### Apple-Inspired Principles
+**Clarity**: Content-first, minimal decoration, clear typography
+**Deference**: Interface doesn't overshadow content
+**Depth**: Subtle shadows, layered information hierarchy
+
+### Color Palette
+
+**Primary Colors (Sky Blue Family)**
+```css
+--sky-50:  #F0F9FF;
+--sky-100: #E0F2FE;
+--sky-500: #0EA5E9;  /* Primary action color */
+--sky-600: #0284C7;  /* Hover state */
+--sky-700: #0369A1;  /* Pressed state */
+```
+
+**Neutral Colors (Apple System Grays)**
+```css
+/* Light Mode */
+--bg-primary:   #FFFFFF;
+--bg-secondary: #F5F5F7;
+--text-primary: #1D1D1F;
+--text-secondary: #86868B;
+--separator:    #D2D2D7;
+
+/* Dark Mode */
+--bg-primary:   #000000;
+--bg-secondary: #1C1C1E;
+--text-primary: #F5F5F7;
+--text-secondary: #98989D;
+--separator:    #38383A;
+```
+
+**Semantic Colors**
+```css
+--success: #34C759; /* #30D158 in dark */
+--warning: #FF9500; /* #FF9F0A in dark */
+--error:   #FF3B30; /* #FF453A in dark */
+```
+
+### Typography
+
+**Font Stack:**
+```css
+font-family: -apple-system, BlinkMacSystemFont, 
+             'Apple SD Gothic Neo', 'Pretendard', 
+             'Segoe UI', 'Roboto', sans-serif;
+```
+
+**Type Scale:**
+```css
+/* Large Title */ 34px / 41px / 700 / 0.37px
+/* Title 1 */     28px / 34px / 700 / 0.36px
+/* Title 2 */     22px / 28px / 600 / 0.35px
+/* Headline */    17px / 22px / 600 / -0.41px
+/* Body */        17px / 22px / 400 / -0.41px
+/* Callout */     16px / 21px / 400 / -0.32px
+/* Footnote */    13px / 18px / 400 / -0.08px
+/* Caption */     12px / 16px / 400 / 0px
+```
+
+**Font Weights:**
+- 400 (Regular): Body text, default
+- 600 (Semibold): Headings, emphasis
+- 700 (Bold): Strong emphasis, page titles
+
+### Spacing (8pt Grid)
+```css
+--space-xs:   4px;
+--space-sm:   8px;
+--space-md:   12px;
+--space-base: 16px;
+--space-lg:   20px;
+--space-xl:   24px;
+--space-2xl:  32px;
+--space-3xl:  40px;
+```
+
+### Component Specifications
+
+**Button (Primary)**
+```css
+height: 44px; /* minimum touch target */
+padding: 16px 24px;
+background: #0EA5E9;
+color: white;
+border-radius: 10px;
+font-size: 17px;
+font-weight: 600;
+box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+
+/* Hover */
+background: #0284C7;
+box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+
+/* Active/Pressed */
+background: #0369A1;
+transform: scale(0.98);
+```
+
+**Card**
+```css
+background: white;
+border: 0.5px solid #D2D2D7;
+border-radius: 12px;
+padding: 20px;
+box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+
+/* Hover */
+box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+transform: translateY(-2px);
+transition: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+```
+
+**Input Field**
+```css
+height: 44px;
+padding: 12px 16px;
+background: rgba(120, 120, 128, 0.12);
+border: none;
+border-radius: 10px;
+font-size: 17px;
+
+/* Focus */
+background: white;
+border: 2px solid #0EA5E9;
+box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
+```
+
+**All Interactive Elements:**
+- Minimum touch target: **44px × 44px**
+- Accessible color contrast: **WCAG 2.1 AA** (4.5:1 for text, 3:1 for UI)
+
+---
+
+## 5. CODE QUALITY STANDARDS
+
+### TypeScript Rules
+
+**✅ GOOD:**
+```typescript
+// Proper interface usage
+interface Word {
+  lemma: string
+  translation: string
+  language: Language
+}
+
+// Generic types
+async function fetchData<T>(url: string): Promise<T> {
+  // ...
+}
+
+// Type narrowing
+function isError(result: unknown): result is Error {
+  return result instanceof Error
+}
+```
+
+**❌ BAD:**
+```typescript
+// No any types
+function process(data: any) { }  // ❌
+
+// Use unknown instead
+function process(data: unknown) {  // ✅
+  if (typeof data === 'string') {
+    // now data is string
+  }
+}
+
+// No implicit any
+const items = []  // ❌ any[]
+const items: string[] = []  // ✅
+```
+
+### React Best Practices
+
+**Hooks Rules:**
+```typescript
+// ✅ GOOD: Custom hooks with 'use' prefix
+export function useTweetAnalysis() {
+  const [data, setData] = useState(null)
+  // ...
+  return { data, isLoading }
+}
+
+// ✅ GOOD: Proper dependency arrays
+useEffect(() => {
+  fetchData(userId)
+}, [userId]) // Include all dependencies
+
+// ❌ BAD: Missing dependencies
+useEffect(() => {
+  fetchData(userId)
+}, []) // Missing userId - stale closure bug
+```
+
+**Component Patterns:**
+```typescript
+// ✅ GOOD: Functional component
+export function WordCard({ word }: Props) {
+  return <div>{word.lemma}</div>
+}
+
+// ❌ BAD: Class components
+class WordCard extends React.Component { } // Don't use
+
+// ✅ GOOD: Destructured props
+function Card({ title, description }: CardProps) { }
+
+// ❌ BAD: Props as single object
+function Card(props: CardProps) {
+  return <div>{props.title}</div>
+}
+```
+
+### File Naming Conventions
+
+```
+components/
+  ui/
+    button.tsx           // ✅ kebab-case for files
+    word-card.tsx        // ✅
+  features/
+    tweet-analyzer/
+      tweet-input.tsx    // ✅
+
+lib/
+  utils/
+    cn.ts                // ✅ kebab-case
+    date-format.ts       // ✅
+  hooks/
+    use-tweet-analysis.ts  // ✅ use-* prefix
+  types/
+    word.ts              // ✅ kebab-case
+    api.ts               // ✅
+
+app/
+  api/
+    words/
+      route.ts           // ✅ Must be named 'route.ts'
+```
+
+**Type/Interface Naming:**
+```typescript
+// ✅ PascalCase for types and interfaces
+interface Word { }
+type ApiResponse = { }
+enum Language { }
+
+// Component props suffix
+interface WordCardProps { }
+type ButtonProps = { }
+```
+
+### Performance Optimization
+
+**Code Splitting:**
+```typescript
+// ✅ GOOD: Dynamic imports for heavy components
+import dynamic from 'next/dynamic'
+
+const TweetAnalyzer = dynamic(
+  () => import('@/components/features/tweet-analyzer'),
+  {
+    loading: () => <AnalyzerSkeleton />,
+    ssr: false // client-only if needed
+  }
+)
+```
+
+**Image Optimization:**
+```typescript
+// ✅ GOOD: Next.js Image component
+import Image from 'next/image'
+
+<Image
+  src="/logo.png"
+  alt="TweetLingo"
+  width={200}
+  height={50}
+  priority // for above-fold images
+/>
+```
+
+**Database Query Optimization:**
+```typescript
+// ✅ GOOD: Select only needed fields
+const words = await prisma.word.findMany({
+  select: {
+    id: true,
+    lemma: true,
+    translation: true,
+    // Only what's needed
+  },
+  take: 20 // Pagination
+})
+
+// ❌ BAD: Select all fields
+const words = await prisma.word.findMany() // Gets everything
+```
+
+---
+
+## 6. N8N WORKFLOW STANDARDS
+
+### Workflow Design Principles
+- **Modular**: Break complex workflows into sub-workflows
+- **Descriptive Naming**: Use clear node names (e.g., "Gemini: Extract Words" not "HTTP Request 1")
+- **Error Handling**: Always include error catch nodes and retry logic
+- **Environment Variables**: Store all API keys as env vars, never hardcode
+
+### Tweet Analysis Workflow
+
+**Node Structure:**
+1. **Webhook** - Receive tweet URL
+2. **X API Call** - Extract tweet content
+3. **Gemini - Language Detection** - Detect EN/JA/ZH
+4. **Gemini - Word Extraction** - POS tagging + filter
+5. **Split in Batches** - Process words individually
+6. **LingvaNex - Translation** - Translate each word
+7. **Dictionary API** - Get definitions/pronunciation
+8. **Function - Format JSON** - Structure response
+9. **Response** - Return to client
+
+**Gemini Prompt Template:**
+```
+Extract main words (nouns, verbs, adjectives, adverbs) from this tweet:
+"{tweetText}"
+
+Rules:
+- Extract ONLY content words (exclude articles, prepositions, conjunctions)
+- For hashtags: remove # and treat as regular word
+- Ignore: mentions, emojis, numbers, URLs
+- Return original form and lemma
+
+Return JSON array:
+[
+  {"original": "finished", "lemma": "finish", "pos": "verb"},
+  {"original": "reading", "lemma": "read", "pos": "verb"},
+  ...
+]
+
+Minimum 3 words required.
+```
+
+### Error Handling Strategy
+
+```javascript
+// In Function node: Retry with exponential backoff
+const maxRetries = 3;
+let attempt = 0;
+
+while (attempt < maxRetries) {
+  try {
+    const result = await callAPI();
+    return result;
+  } catch (error) {
+    attempt++;
+    if (attempt === maxRetries) throw error;
+    await sleep(Math.pow(2, attempt) * 1000); // 2s, 4s, 8s
+  }
+}
+```
+
+**Fallback Chain:**
+1. Gemini fails → Use LingvaNex for basic translation
+2. LingvaNex fails → Use Gemini for translation
+3. Dictionary API fails → Use Gemini to generate definition
+4. All fail → Return partial results with warning
+
+### Notion Sync Workflow
+
+**Duplicate Prevention:**
+```javascript
+// Query existing words before creating
+const existingWord = await $notion.queryDatabase({
+  database_id: dbId,
+  filter: {
+    property: "단어",
+    title: {
+      equals: wordLemma
+    }
+  }
+});
+
+if (existingWord.results.length > 0) {
+  // Update existing
+  await $notion.updatePage({...});
+} else {
+  // Create new
+  await $notion.createPage({...});
+}
+```
+
+---
+
+## 7. DATA MODELS & API CONTRACTS
+
+### Word Object Structure
+
+```typescript
+interface Word {
+  id: string              // UUID
+  lemma: string           // "finish"
+  original: string        // "finished"
+  language: "EN" | "JA" | "ZH"
+  partOfSpeech: "NOUN" | "VERB" | "ADJECTIVE" | "ADVERB"
+  translation: string     // "끝내다, 완료하다"
+  definition?: string     // English definition
+  pronunciation: {
+    ipa?: string          // "[ˈfɪnɪʃ]"
+    hangul?: string       // "피니쉬"
+  }
+  example: string         // Original tweet text
+  status: "LEARNING" | "REVIEW" | "MASTERED"
+  savedAt: Date
+  reviewDate?: Date
+  source: {
+    tweetUrl: string
+    tweetText: string
+  }
+}
+```
+
+### API Request/Response Schemas
+
+**POST /api/tweets/analyze**
+```typescript
+// Request
+{
+  url: string  // X tweet URL
+}
+
+// Response (200)
+{
+  tweetId: string
+  tweet: {
+    id: string
+    text: string
+    author: string
+    language: "EN" | "JA" | "ZH"
+    url: string
+  }
+  words: Array<{
+    lemma: string
+    original: string
+    partOfSpeech: "NOUN" | "VERB" | "ADJECTIVE" | "ADVERB"
+    translation: string
+    pronunciation: { ipa?: string, hangul?: string }
+    example: string
+  }>
+  analyzedAt: string  // ISO 8601
+}
+
+// Error Response
+{
+  error: "INVALID_URL" | "INVALID_TWEET" | "UNSUPPORTED_LANGUAGE"
+  message: string
+}
+```
+
+**GET /api/words**
+```typescript
+// Query params
+{
+  language?: "EN" | "JA" | "ZH"
+  status?: "LEARNING" | "REVIEW" | "MASTERED"
+  sortBy?: "savedAt" | "lemma" | "reviewDate"
+  order?: "asc" | "desc"
+  page?: number
+  limit?: number  // default 20
+}
+
+// Response
+{
+  words: Word[]
+  pagination: {
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+  }
+}
+```
+
+### Validation with Zod
+
+```typescript
+import { z } from 'zod'
+
+const analyzeSchema = z.object({
+  url: z.string().url().regex(/twitter\.com|x\.com/)
+})
+
+const wordSaveSchema = z.object({
+  words: z.array(z.object({
+    lemma: z.string().min(1).max(100),
+    original: z.string().min(1).max(100),
+    language: z.enum(["EN", "JA", "ZH"]),
+    partOfSpeech: z.enum(["NOUN", "VERB", "ADJECTIVE", "ADVERB"]),
+    translation: z.string().min(1),
+    ipaNotation: z.string().optional(),
+    hangulNotation: z.string().optional(),
+    example: z.string(),
+    tweetId: z.string().optional()
+  })),
+  syncToNotion: z.boolean().optional()
+})
+```
+
+---
+
+## 8. TESTING & ERROR HANDLING
+
+### Testing Strategy
+
+**Unit Tests (Jest)**
+```typescript
+// lib/utils/__tests__/language.test.ts
+import { detectLanguage } from '../language'
+
+describe('detectLanguage', () => {
+  it('should detect English', () => {
+    expect(detectLanguage('Hello world')).toBe('EN')
+  })
+  
+  it('should detect Japanese', () => {
+    expect(detectLanguage('こんにちは')).toBe('JA')
+  })
+})
+```
+
+**API Tests**
+```typescript
+// app/api/tweets/__tests__/analyze.test.ts
+import { POST } from '../analyze/route'
+import { NextRequest } from 'next/server'
+
+describe('POST /api/tweets/analyze', () => {
+  it('should analyze tweet successfully', async () => {
+    const request = new NextRequest('http://localhost', {
+      method: 'POST',
+      body: JSON.stringify({ url: 'https://x.com/user/status/123' })
+    })
+    
+    const response = await POST(request)
+    expect(response.status).toBe(200)
+  })
+})
+```
+
+### Error Handling Patterns
+
+**API Error Responses:**
+```typescript
+export class ApiError extends Error {
+  constructor(
+    public code: string,
+    public message: string,
+    public statusCode: number
+  ) {
+    super(message)
+  }
+}
+
+// Usage
+throw new ApiError('INVALID_URL', 'Invalid tweet URL', 400)
+throw new ApiError('RATE_LIMIT_EXCEEDED', 'Too many requests', 429)
+```
+
+**Error Boundaries (React):**
+```tsx
+// app/error.tsx
+'use client'
+
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error
+  reset: () => void
+}) {
+  return (
+    <div>
+      <h2>Something went wrong!</h2>
+      <button onClick={reset}>Try again</button>
+    </div>
+  )
+}
+```
+
+**Fallback Strategies:**
+```typescript
+async function translateWord(word: string, lang: Language) {
+  try {
+    // Try Gemini first
+    return await geminiTranslate(word, lang)
+  } catch (error) {
+    console.warn('Gemini failed, trying LingvaNex')
+    try {
+      return await lingvanexTranslate(word, lang)
+    } catch (error2) {
+      console.error('All translation services failed')
+      throw new ApiError('TRANSLATION_FAILED', 'Could not translate word', 500)
+    }
+  }
+}
+```
+
+---
+
+## 9. DEPLOYMENT & DEVOPS
+
+### Environment Variables
+
+```bash
+# Database
+DATABASE_URL="postgresql://..."
+DIRECT_URL="postgresql://..."
+
+# Auth
+AUTH_SECRET="generate-with-openssl-rand-base64-32"
+AUTH_URL="https://tweetlingo.com"
+
+# OAuth
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+NOTION_CLIENT_ID=""
+NOTION_CLIENT_SECRET=""
+
+# External APIs
+GEMINI_API_KEY=""
+X_API_BEARER_TOKEN=""
+
+# Encryption
+ENCRYPTION_KEY="generate-with-openssl-rand-hex-32"
+
+# App
+NEXT_PUBLIC_APP_URL="https://tweetlingo.com"
+```
+
+### Vercel Configuration
+
+**vercel.json:**
+```json
+{
+  "buildCommand": "prisma generate && next build",
+  "framework": "nextjs",
+  "regions": ["icn1"],
+  "env": {
+    "DATABASE_URL": "@database-url",
+    "GEMINI_API_KEY": "@gemini-api-key"
+  }
+}
+```
+
+**next.config.ts:**
+```typescript
+const nextConfig: NextConfig = {
+  reactStrictMode: true,
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    remotePatterns: [
+      { protocol: 'https', hostname: 'pbs.twimg.com' }
+    ]
+  },
+  serverExternalPackages: ['@prisma/client'],
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '2mb'
+    }
+  }
+}
+```
+
+### Database Migrations
+
+```bash
+# Development
+npx prisma migrate dev --name add_user_settings
+
+# Production (runs automatically on Vercel build)
+npx prisma migrate deploy
+```
+
+**Migration Strategy:**
+1. Create migration locally: `prisma migrate dev`
+2. Review generated SQL
+3. Test in preview environment
+4. Deploy to production (auto-runs on build)
+
+---
+
+## 10. DEVELOPMENT WORKFLOW
+
+### Git Workflow
+
+**Branch Naming:**
+```
+feat/tweet-analysis
+fix/notion-sync-error
+refactor/word-extraction
+docs/api-documentation
+```
+
+**Commit Message Format:**
+```
+feat: add tweet URL validation
+fix: resolve Notion duplicate save issue
+refactor: optimize Gemini API calls
+docs: update API endpoint documentation
+test: add word extraction unit tests
+```
+
+### Code Review Checklist
+
+Before submitting PR:
+- [ ] All TypeScript errors resolved
+- [ ] ESLint warnings fixed
+- [ ] Prettier formatting applied
+- [ ] No console.log statements (use proper logging)
+- [ ] All new components have proper types
+- [ ] API routes have Zod validation
+- [ ] Database queries use proper indexes
+- [ ] Mobile responsive design tested
+- [ ] Dark mode compatibility checked
+- [ ] Accessibility (ARIA labels, keyboard navigation)
+
+### Local Development
+
+```bash
+# Install dependencies
+npm install
+
+# Setup database
+npx prisma generate
+npx prisma db push
+
+# Start dev server with Turbopack
+npm run dev -- --turbo
+
+# Run linter
+npm run lint
+
+# Format code
+npm run format
+
+# Type check
+npm run type-check
+
+# Run tests
+npm test
+```
+
+### Pre-commit Hooks (Husky + lint-staged)
+
+```json
+{
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ]
+  }
+}
+```
+
+---
+
+## CRITICAL REMINDERS
+
+### Always Remember
+1. **Server Components First**: Default to Server Components, add 'use client' only when needed
+2. **Type Safety**: No `any` types - use `unknown` or proper typing
+3. **Performance**: Target 2-second tweet analysis, optimize database queries
+4. **Accessibility**: 44px minimum touch targets, WCAG AA contrast ratios
+5. **Design System**: Follow Apple-inspired principles (Clarity, Deference, Depth)
+6. **Error Handling**: Always implement fallback strategies for external APIs
+7. **Security**: Never hardcode API keys, use environment variables
+8. **MVP Focus**: Prioritize Phase 1 features before extensions
+
+### Quick Reference Links
+- **Main Docs**: `docs/서비스_기획안.md` - Service specification
+- **Reference**: `docs/참고자료.md` - Development reference
+- **Architecture**: `docs/architecture.md` - System architecture
+- **Design**: `docs/design_guide.md` - Design system
+- **Wireframes**: `docs/wireframe.md` - UI specifications
+
+### When In Doubt
+- Check existing documentation in `docs/` folder
+- Follow Next.js 15 and React 19 official docs
+- Maintain Apple-inspired design principles
+- Ask before making architectural changes
+
+---
+
+**Built with clarity, shipped with confidence. 🚀**
