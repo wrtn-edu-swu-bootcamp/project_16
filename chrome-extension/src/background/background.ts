@@ -37,7 +37,7 @@ async function handleMessage(message: Message, sender: chrome.runtime.MessageSen
 
   switch (type) {
     case 'ANALYZE_TWEET':
-      return await handleAnalyzeTweet(payload as { url: string; autoSave?: boolean })
+      return await handleAnalyzeTweet(payload as { text?: string; url?: string; autoSave?: boolean })
     
     case 'SAVE_WORDS':
       return await handleSaveWords(payload as { words: any[]; syncToNotion?: boolean })
@@ -58,10 +58,11 @@ async function handleMessage(message: Message, sender: chrome.runtime.MessageSen
 
 /**
  * Handle tweet analysis
+ * Supports both text input (no X API) and URL input (requires X API)
  */
-async function handleAnalyzeTweet(payload: { url: string; autoSave?: boolean }): Promise<MessageResponse> {
+async function handleAnalyzeTweet(payload: { text?: string; url?: string; autoSave?: boolean }): Promise<MessageResponse> {
   try {
-    const { url, autoSave = false } = payload
+    const { text, url, autoSave = false } = payload
 
     // Check authentication
     const auth = await storage.getAuth()
@@ -72,15 +73,17 @@ async function handleAnalyzeTweet(payload: { url: string; autoSave?: boolean }):
       }
     }
 
-    // Call API
-    const result = await apiClient.analyzeTweet(url, autoSave)
+    // Call API with text (preferred) or URL
+    const input = text ? { text } : { url }
+    const result = await apiClient.analyzeTweet(input, autoSave)
 
     // Cache recent words
     await storage.addRecentWords(result.words)
 
     return {
       success: true,
-      data: result
+      data: result,
+      savedCount: result.words?.length || 0
     }
   } catch (error: any) {
     console.error('[Background] Analyze tweet error:', error)

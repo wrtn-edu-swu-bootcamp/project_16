@@ -15,16 +15,22 @@ cp .env.example .env.local
 npx prisma generate
 ```
 
-### 2. Database Setup
+### 2. Database Setup (Cloud-based, No Docker)
 
-**Option A: Local Postgres (Docker)**
-```bash
-docker-compose up -d
-```
+Use a cloud PostgreSQL provider (all have free tiers):
+
+**Option A: Neon (Recommended)**
+- Create account at https://neon.tech
+- Create a new project
+- Copy connection string to .env.local
 
 **Option B: Vercel Postgres**
 - Create a Vercel Postgres database
 - Copy DATABASE_URL and DIRECT_URL to .env.local
+
+**Option C: Supabase**
+- Create account at https://supabase.com
+- Settings → Database → Connection string
 
 **Push schema:**
 ```bash
@@ -258,7 +264,7 @@ npx prisma generate
 
 **2. Database connection error**
 - Check DATABASE_URL in .env.local
-- Ensure database is running (Docker or Vercel)
+- Ensure cloud database is accessible (Neon, Vercel Postgres, or Supabase)
 
 **3. Gemini API error**
 - Verify GEMINI_API_KEY is valid

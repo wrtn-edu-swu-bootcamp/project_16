@@ -135,8 +135,10 @@
 - **Prisma ORM 6**: TypeScript 우선, ESM 지원, Rust-free 클라이언트, Neon 어댑터 지원
 - **Neon Adapter**: Vercel Postgres(Neon) 최적화
 
-#### 데이터베이스
-- **Vercel Postgres (Neon)**: 서버리스 Postgres, 오토스케일링, Free Tier 제공
+#### 데이터베이스 (Cloud-based, No Docker)
+- **Vercel Postgres (Neon)**: 프로덕션 환경 (서버리스, 오토스케일링)
+- **Neon**: 로컬 개발 환경 (무료 티어, 간편한 설정)
+- **Supabase**: 대안 옵션 (무료 티어, PostgreSQL 호스팅)
 
 ### 2.3 인증
 
@@ -2219,28 +2221,20 @@ npx lint-staged
 }
 ```
 
-#### Docker Compose (로컬 Postgres)
+#### 클라우드 데이터베이스 설정 (No Docker)
 
-```yaml
-# docker-compose.yml
-version: '3.8'
+로컬 개발 시에도 클라우드 PostgreSQL을 사용합니다:
 
-services:
-  postgres:
-    image: postgres:16-alpine
-    restart: always
-    environment:
-      POSTGRES_USER: tweetlingo
-      POSTGRES_PASSWORD: dev_password
-      POSTGRES_DB: tweetlingo_dev
-    ports:
-      - '5432:5432'
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-volumes:
-  postgres_data:
+```bash
+# .env.local 예시 (Neon 사용)
+DATABASE_URL="postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require"
+DIRECT_URL="postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require"
 ```
+
+**추천 클라우드 DB 옵션:**
+- **Neon** (https://neon.tech): 가장 간단, 무료 3GB
+- **Vercel Postgres**: Vercel 통합, 무료 60시간/월
+- **Supabase** (https://supabase.com): 무료 500MB
 
 ### 11.4 VS Code 설정
 
@@ -2342,7 +2336,7 @@ export default nextConfig
 
 #### Development
 - **URL**: `http://localhost:3000`
-- **DB**: 로컬 Postgres (Docker)
+- **DB**: Cloud Postgres (Neon, Supabase 등 - Docker 불필요)
 - **API Keys**: 테스트용 키
 
 #### Preview (PR별 자동 배포)

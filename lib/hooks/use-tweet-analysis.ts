@@ -12,6 +12,7 @@ interface TweetAnalysisResult {
     url: string
   }
   words: Array<{
+    id?: string
     lemma: string
     original: string
     partOfSpeech: string
@@ -22,19 +23,29 @@ interface TweetAnalysisResult {
       hangul?: string
     }
     example: string
+    status?: string
+    savedAt?: string
   }>
   analyzedAt: string
+  autoSaved?: boolean
+  savedCount?: number
+}
+
+// Support both text input and URL input
+interface AnalysisInput {
+  text?: string
+  url?: string
 }
 
 export function useTweetAnalysis() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (url: string): Promise<TweetAnalysisResult> => {
+    mutationFn: async (input: AnalysisInput): Promise<TweetAnalysisResult> => {
       const response = await fetch('/api/tweets/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
+        body: JSON.stringify(input)
       })
 
       if (!response.ok) {
@@ -46,6 +57,7 @@ export function useTweetAnalysis() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tweets'] })
+      queryClient.invalidateQueries({ queryKey: ['vocabulary'] })
     }
   })
 }

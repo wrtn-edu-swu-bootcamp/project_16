@@ -14,51 +14,69 @@ X(트위터)에서 외국어 트윗을 읽을 때, 모르는 단어를 자동으
 - 🌐 **다국어 지원**: 영어, 일본어, 중국어 ↔ 한국어
 
 ### Phase 2 (Current) ✅
-- 🎯 **Chrome Extension**: 트윗을 읽으면서 바로 분석
+- 🎯 **Chrome Extension**: 트윗을 읽으면서 바로 분석 (X API 불필요!)
 - 💾 **자동 저장**: 설정한 조건에 따라 단어 자동 저장
 - ⚙️ **고급 설정**: 언어별, 최소 단어 개수 설정
 - 🚀 **One-Click Analysis**: X 페이지에서 버튼 클릭으로 즉시 분석
+- 📝 **텍스트 직접 입력**: URL 없이 트윗 텍스트를 직접 붙여넣기 지원
+
+> **Note**: X API 유료 플랜 없이도 완전히 작동합니다! Chrome Extension이 페이지에서 직접 텍스트를 추출합니다.
 
 ## 🚀 Quick Start
 
-### Web App
+### 🎯 비개발자를 위한 간편 시작 가이드
+
+1. **API 키 발급**: [`API_KEYS_GUIDE.md`](API_KEYS_GUIDE.md) 참고 (30-40분)
+2. **클라우드 DB 설정**: Vercel Postgres 또는 Neon 무료 계정 생성
+3. **로컬 환경 설정**: PowerShell에서 `.\setup-local.ps1` 실행 (10분)
+4. **개발 서버 실행**: `npm run dev` 실행 후 http://localhost:3000 접속
+5. **배포 가이드**: [`DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md) 참고 (1-2시간)
+
+### 💻 개발자를 위한 빠른 시작
 
 ```bash
-# Install dependencies
+# 의존성 설치
 npm install
 
-# Setup environment variables
+# 환경 변수 설정
 cp .env.example .env.local
-# Edit .env.local with your API keys
+# .env.local 파일에 API 키 및 DB 연결 정보 입력
 
-# Setup database
-npx prisma generate
-npx prisma db push
+# 클라우드 DB 연결 (Vercel Postgres, Neon, 또는 Supabase)
+# .env.local의 DATABASE_URL과 DIRECT_URL 설정
 
-# Run development server
+# 데이터베이스 스키마 적용
+npm run db:push
+
+# 개발 서버 실행
 npm run dev
 ```
 
-Visit http://localhost:3000
+브라우저에서 http://localhost:3000 접속
 
 ### Chrome Extension
 
 ```bash
-# Navigate to extension directory
+# Extension 폴더로 이동
 cd chrome-extension
 
-# Install dependencies
+# 의존성 설치
 npm install
 
-# Build extension
+# 프로덕션 빌드
 npm run build
 
-# Load in Chrome
-# 1. Go to chrome://extensions/
-# 2. Enable "Developer mode"
-# 3. Click "Load unpacked"
-# 4. Select chrome-extension/dist folder
+# 또는 PowerShell 스크립트 사용 (Windows)
+# 프로젝트 루트에서: .\build-extension.ps1
+
+# Chrome에 로드
+# 1. chrome://extensions/ 접속
+# 2. "개발자 모드" 켜기
+# 3. "압축 해제된 확장 프로그램 로드" 클릭
+# 4. chrome-extension/dist 폴더 선택
 ```
+
+⚠️ Extension 아이콘이 필요합니다. [`chrome-extension/ICONS_GUIDE.md`](chrome-extension/ICONS_GUIDE.md) 참고
 
 ## 🏗️ Tech Stack
 
@@ -75,7 +93,7 @@ npm run build
 - **Next.js API Routes** - Serverless functions
 - **Prisma ORM 6** - Database ORM
 - **Auth.js v5** - Authentication (Google OAuth)
-- **PostgreSQL** - Main database (Vercel Postgres)
+- **Vercel Postgres** - Main database (Cloud-based, no Docker required)
 
 ### Chrome Extension
 - **React 19** - UI components
@@ -85,9 +103,9 @@ npm run build
 
 ### External APIs
 - **Google Gemini 2.0 Flash** - NLP and word extraction
-- **X API v2** - Tweet data extraction
 - **Free Dictionary API** - Word definitions and pronunciation
 - **Notion API v1** - Notion integration (OAuth 2.0)
+- **X API v2** - Optional (Chrome Extension extracts text directly from pages)
 
 ## 📦 Project Structure
 

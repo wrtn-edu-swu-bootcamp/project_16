@@ -20,7 +20,14 @@ class ApiClient {
     return headers
   }
 
-  async analyzeTweet(url: string, autoSave = false): Promise<AnalyzeResponse> {
+  /**
+   * Analyze tweet - supports both text input and URL input
+   * Text input is preferred as it doesn't require X API
+   */
+  async analyzeTweet(
+    input: { text?: string; url?: string },
+    autoSave = false
+  ): Promise<AnalyzeResponse> {
     const headers = await this.getHeaders()
     const queryParams = new URLSearchParams()
     if (autoSave) {
@@ -32,7 +39,7 @@ class ApiClient {
       {
         method: 'POST',
         headers,
-        body: JSON.stringify({ url })
+        body: JSON.stringify(input)
       }
     )
 

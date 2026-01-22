@@ -112,11 +112,12 @@ tweetlingo/
 
 ### 1. Database Setup
 ```bash
-# Local development with Docker
-docker-compose up -d
+# Use Cloud PostgreSQL (No Docker required)
+# Options: Neon, Vercel Postgres, or Supabase (all have free tiers)
 
-# Or connect to Vercel Postgres
-# Copy DATABASE_URL and DIRECT_URL from Vercel
+# Set DATABASE_URL and DIRECT_URL in .env.local
+# Example (Neon):
+# DATABASE_URL="postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require"
 ```
 
 ### 2. Environment Variables

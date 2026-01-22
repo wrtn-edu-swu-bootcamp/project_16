@@ -5,9 +5,14 @@ import { extractTweetId, fetchTweet } from '@/lib/api/x-api'
 import { extractWords, translateWord } from '@/lib/api/gemini'
 import { getDefinition, getPronunciation } from '@/lib/api/dictionary'
 import { prisma } from '@/lib/db/prisma'
+import { randomUUID } from 'crypto'
 
+// Support both text input and URL input
 const analyzeSchema = z.object({
-  url: z.string().url()
+  text: z.string().min(10).optional(),
+  url: z.string().url().optional()
+}).refine(data => data.text || data.url, {
+  message: 'Either text or url is required'
 })
 
 export async function POST(request: NextRequest) {
@@ -21,73 +26,100 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 2. Validate request and check autoSave flag
+    // 2. Validate request
     const body = await request.json()
-    const { url } = analyzeSchema.parse(body)
+    const { text, url } = analyzeSchema.parse(body)
     const searchParams = request.nextUrl.searchParams
     const autoSave = searchParams.get('autoSave') === 'true'
 
-    // 3. Extract tweet ID
-    const tweetId = extractTweetId(url)
-    if (!tweetId) {
+    let tweetText: string
+    let tweetId: string
+    let tweetUrl: string
+    let tweetAuthor: string | undefined
+
+    // 3. Get tweet content - either from direct text or URL
+    if (text) {
+      // Direct text input mode (No X API required)
+      tweetText = text
+      tweetId = `text_${randomUUID().slice(0, 8)}`
+      tweetUrl = ''
+      tweetAuthor = undefined
+    } else if (url) {
+      // URL input mode (requires X API token)
+      const extractedId = extractTweetId(url)
+      if (!extractedId) {
+        return NextResponse.json(
+          { error: 'INVALID_URL', message: 'Invalid tweet URL' },
+          { status: 400 }
+        )
+      }
+
+      // Check cache first
+      const cached = await prisma.tweet.findUnique({
+        where: { tweetId: extractedId },
+        include: { words: true }
+      })
+
+      if (cached && cached.userId === session.user.id) {
+        return NextResponse.json({
+          tweetId: cached.id,
+          tweet: {
+            id: cached.tweetId,
+            text: cached.text,
+            author: cached.author || '',
+            language: cached.language,
+            url: cached.url
+          },
+          words: cached.words.map(w => ({
+            id: w.id,
+            lemma: w.lemma,
+            original: w.original,
+            partOfSpeech: w.partOfSpeech,
+            translation: w.translation,
+            definition: w.definition,
+            pronunciation: {
+              ipa: w.ipaNotation,
+              hangul: w.hangulNotation
+            },
+            example: w.example,
+            status: w.status,
+            savedAt: w.savedAt.toISOString()
+          })),
+          analyzedAt: cached.analyzedAt.toISOString()
+        })
+      }
+
+      // Fetch tweet from X API
+      const tweetData = await fetchTweet(extractedId)
+      if (!tweetData) {
+        return NextResponse.json(
+          { error: 'TWEET_NOT_FOUND', message: 'Tweet not found. Try copying the tweet text directly instead.' },
+          { status: 404 }
+        )
+      }
+
+      tweetText = tweetData.text
+      tweetId = extractedId
+      tweetUrl = url
+      tweetAuthor = tweetData.author_id
+    } else {
       return NextResponse.json(
-        { error: 'INVALID_URL', message: 'Invalid tweet URL' },
+        { error: 'INVALID_REQUEST', message: 'Either text or url is required' },
         { status: 400 }
       )
     }
 
-    // 4. Check cache
-    const cached = await prisma.tweet.findUnique({
-      where: { tweetId },
-      include: { words: true }
-    })
-
-    if (cached && cached.userId === session.user.id) {
-      return NextResponse.json({
-        tweetId: cached.id,
-        tweet: {
-          id: cached.tweetId,
-          text: cached.text,
-          author: cached.author || '',
-          language: cached.language,
-          url: cached.url
-        },
-        words: cached.words.map(w => ({
-          lemma: w.lemma,
-          original: w.original,
-          partOfSpeech: w.partOfSpeech,
-          translation: w.translation,
-          definition: w.definition,
-          pronunciation: {
-            ipa: w.ipaNotation,
-            hangul: w.hangulNotation
-          },
-          example: w.example
-        })),
-        analyzedAt: cached.analyzedAt.toISOString()
-      })
-    }
-
-    // 5. Fetch tweet
-    const tweetData = await fetchTweet(tweetId)
-    if (!tweetData) {
-      return NextResponse.json(
-        { error: 'TWEET_NOT_FOUND', message: 'Tweet not found or unavailable' },
-        { status: 404 }
-      )
-    }
-
-    // 6. Extract words
-    const extraction = await extractWords(tweetData.text)
+    // 4. Extract words using Gemini
+    const extraction = await extractWords(tweetText)
     
     if (extraction.words.length < 3) {
       return NextResponse.json(
-        { error: 'INSUFFICIENT_WORDS', message: 'Not enough words to learn' },
+        { error: 'INSUFFICIENT_WORDS', message: 'Not enough words to learn (minimum 3 words required)' },
         { status: 400 }
       )
     }
 
-    // 7. Enrich each word
+    // 5. Enrich each word with translation, definition, pronunciation
     const enrichedWords = await Promise.all(
       extraction.words.map(async (word) => {
         const translation = await translateWord(word.lemma, extraction.language, 'KO')
@@ -101,13 +133,13 @@ export async function POST(request: NextRequest) {
           translation,
           definition,
           ipaNotation: pronunciation?.ipa,
-          hangulNotation: undefined, // TODO: Add hangul conversion
-          example: tweetData.text
+          hangulNotation: undefined,
+          example: tweetText
         }
       })
     )
 
-    // 8. Save to database
+    // 6. Save to database
     if (!session.user?.id) {
       return NextResponse.json(
         { error: 'UNAUTHORIZED', message: 'User ID not found' },
@@ -118,33 +150,30 @@ export async function POST(request: NextRequest) {
     const tweet = await prisma.tweet.create({
       data: {
         tweetId,
-        url,
-        text: tweetData.text,
-        author: tweetData.author_id,
+        url: tweetUrl,
+        text: tweetText,
+        author: tweetAuthor,
         language: extraction.language as any,
         userId: session.user.id
       },
       include: { words: true }
     })
 
-    // Create words (auto-save logic)
+    // 7. Create words (with auto-save logic)
     let createdWords = []
-    let savedWords = []
+    let savedWords: any[] = []
     
     if (autoSave) {
-      // Get user settings for auto-save
       const userSettings = await prisma.userSettings.findUnique({
         where: { userId: session.user.id }
       })
       
       if (userSettings?.autoSaveWords && enrichedWords.length >= userSettings.autoSaveMinWords) {
-        // Filter words by user's selected languages
-        const wordsToSave = enrichedWords.filter(word =>
+        const wordsToSave = enrichedWords.filter(() =>
           userSettings.autoSaveLanguages.includes(extraction.language as any)
         )
         
         if (wordsToSave.length > 0) {
-          // Save words
           savedWords = await Promise.all(
             wordsToSave.map(word =>
               prisma.word.create({
@@ -160,13 +189,11 @@ export async function POST(request: NextRequest) {
             )
           )
           
-          // Auto-sync to Notion if enabled
           const notionIntegration = await prisma.notionIntegration.findUnique({
             where: { userId: session.user.id }
           })
           
           if (notionIntegration?.isActive && notionIntegration.autoSync) {
-            // TODO: Implement Notion sync in background
             console.log('[Auto-save] Notion sync triggered for', savedWords.length, 'words')
           }
         }
@@ -187,7 +214,7 @@ export async function POST(request: NextRequest) {
       )
     )
 
-    // 9. Return response
+    // 8. Return response
     return NextResponse.json({
       tweetId: tweet.id,
       tweet: {
@@ -221,7 +248,7 @@ export async function POST(request: NextRequest) {
 
     if (error.message === 'TWEET_NOT_FOUND') {
       return NextResponse.json(
-        { error: 'TWEET_NOT_FOUND', message: 'Tweet not found' },
+        { error: 'TWEET_NOT_FOUND', message: 'Tweet not found. Try using text input instead.' },
         { status: 404 }
       )
     }
@@ -233,6 +260,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (error.message === 'X_API_UNAUTHORIZED') {
+      return NextResponse.json(
+        { error: 'X_API_UNAUTHORIZED', message: 'X API not configured. Please use text input instead.' },
+        { status: 401 }
+      )
+    }
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'INVALID_REQUEST', message: error.issues[0].message },
@@ -241,7 +275,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'Failed to analyze tweet' },
+      { error: 'INTERNAL_ERROR', message: 'Failed to analyze. Please try again.' },
       { status: 500 }
     )
   }

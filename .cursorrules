@@ -890,9 +890,10 @@ async function translateWord(word: string, lang: Language) {
 ### Environment Variables
 
 ```bash
-# Database
-DATABASE_URL="postgresql://..."
-DIRECT_URL="postgresql://..."
+# Database (Cloud-based - No Docker required)
+# Use Neon, Vercel Postgres, or Supabase
+DATABASE_URL="postgresql://user:pass@host/db?sslmode=require"
+DIRECT_URL="postgresql://user:pass@host/db?sslmode=require"
 
 # Auth
 AUTH_SECRET="generate-with-openssl-rand-base64-32"
@@ -1002,11 +1003,14 @@ Before submitting PR:
 - [ ] Dark mode compatibility checked
 - [ ] Accessibility (ARIA labels, keyboard navigation)
 
-### Local Development
+### Local Development (Cloud DB - No Docker)
 
 ```bash
 # Install dependencies
 npm install
+
+# Set up cloud database connection in .env.local
+# Use Neon, Vercel Postgres, or Supabase (all have free tiers)
 
 # Setup database
 npx prisma generate

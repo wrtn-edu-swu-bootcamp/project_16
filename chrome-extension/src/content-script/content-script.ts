@@ -1,9 +1,8 @@
 /**
  * TweetLingo Content Script
  * Runs on X/Twitter pages to add analyze buttons to tweets
+ * Extracts tweet text directly from the page - NO X API required
  */
-
-import { extractTweetUrl } from '../shared/utils'
 
 // Track processed tweets to avoid duplicates
 const processedTweets = new Set<string>()
@@ -63,20 +62,95 @@ function observeTweets() {
 }
 
 /**
+ * Extract tweet text directly from the DOM element
+ * This allows analysis without using X API
+ */
+function extractTweetTextFromElement(tweetElement: HTMLElement): string | null {
+  // Find the tweet text container
+  const tweetTextElement = tweetElement.querySelector('[data-testid="tweetText"]')
+  if (!tweetTextElement) {
+    return null
+  }
+
+  // Get text content (handles emojis and links properly)
+  let text = ''
+  tweetTextElement.childNodes.forEach(node => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      text += node.textContent
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node as HTMLElement
+      // Handle emoji images
+      if (el.tagName === 'IMG' && el.getAttribute('alt')) {
+        text += el.getAttribute('alt')
+      }
+      // Handle links and other elements
+      else if (el.textContent) {
+        text += el.textContent
+      }
+    }
+  })
+
+  return text.trim() || null
+}
+
+/**
+ * Extract tweet URL from tweet element (for reference, not API use)
+ */
+function extractTweetUrlFromElement(tweetElement: HTMLElement): string | null {
+  const timeLink = tweetElement.querySelector('a[href*="/status/"]')
+  if (!timeLink) {
+    return null
+  }
+
+  const href = timeLink.getAttribute('href')
+  if (!href) {
+    return null
+  }
+
+  return href.startsWith('http') ? href : `https://x.com${href}`
+}
+
+/**
+ * Generate unique ID for tweets (for tracking purposes)
+ */
+function generateTweetId(tweetElement: HTMLElement): string {
+  const url = extractTweetUrlFromElement(tweetElement)
+  if (url) {
+    const match = url.match(/status\/(\d+)/)
+    if (match) {
+      return match[1]
+    }
+  }
+  // Fallback: use element position
+  return `tweet_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+}
+
+/**
  * Add analyze button to a tweet
  */
 function addAnalyzeButton(tweetElement: HTMLElement) {
-  // Extract tweet URL
-  const tweetUrl = extractTweetUrlFromElement(tweetElement)
-  if (!tweetUrl || processedTweets.has(tweetUrl)) {
+  // Generate unique ID for this tweet
+  const tweetId = generateTweetId(tweetElement)
+  if (processedTweets.has(tweetId)) {
     return
   }
 
-  processedTweets.add(tweetUrl)
+  // Extract tweet text
+  const tweetText = extractTweetTextFromElement(tweetElement)
+  if (!tweetText || tweetText.length < 10) {
+    return
+  }
+
+  processedTweets.add(tweetId)
 
   // Find the action bar (like, retweet, etc.)
   const actionBar = tweetElement.querySelector('[role="group"]')
   if (!actionBar) {
+    return
+  }
+
+  // Check if button already exists
+  if (actionBar.querySelector('.tweetlingo-btn-container')) {
     return
   }
 
@@ -91,13 +165,15 @@ function addAnalyzeButton(tweetElement: HTMLElement) {
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
     </svg>
-    <span>Analyze</span>
+    <span>Learn</span>
   `
+
+  const tweetUrl = extractTweetUrlFromElement(tweetElement) || ''
 
   button.addEventListener('click', async (e) => {
     e.preventDefault()
     e.stopPropagation()
-    await handleAnalyzeClick(tweetUrl, button)
+    await handleAnalyzeClick(tweetText, tweetUrl, button)
   })
 
   container.appendChild(button)
@@ -105,29 +181,10 @@ function addAnalyzeButton(tweetElement: HTMLElement) {
 }
 
 /**
- * Extract tweet URL from tweet element
- */
-function extractTweetUrlFromElement(tweetElement: HTMLElement): string | null {
-  // Try to find the permalink link
-  const timeLink = tweetElement.querySelector('a[href*="/status/"]')
-  if (!timeLink) {
-    return null
-  }
-
-  const href = timeLink.getAttribute('href')
-  if (!href) {
-    return null
-  }
-
-  // Convert relative URL to absolute
-  const url = href.startsWith('http') ? href : `https://x.com${href}`
-  return extractTweetUrl(url)
-}
-
-/**
  * Handle analyze button click
+ * Sends the tweet TEXT directly (not URL) - no X API needed!
  */
-async function handleAnalyzeClick(tweetUrl: string, button: HTMLButtonElement) {
+async function handleAnalyzeClick(tweetText: string, tweetUrl: string, button: HTMLButtonElement) {
   try {
     // Update button state
     button.classList.add('loading')
@@ -140,10 +197,14 @@ async function handleAnalyzeClick(tweetUrl: string, button: HTMLButtonElement) {
       <span>Analyzing...</span>
     `
 
-    // Send message to background script
+    // Send text directly to background script (no X API needed)
     const response = await chrome.runtime.sendMessage({
       type: 'ANALYZE_TWEET',
-      payload: { url: tweetUrl, autoSave: true }
+      payload: { 
+        text: tweetText,  // Send text directly instead of URL
+        url: tweetUrl,    // URL is for reference only
+        autoSave: true 
+      }
     })
 
     if (response.success) {
@@ -154,7 +215,7 @@ async function handleAnalyzeClick(tweetUrl: string, button: HTMLButtonElement) {
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
         </svg>
-        <span>Analyzed</span>
+        <span>${response.savedCount || 0} words</span>
       `
 
       // Open side panel
@@ -168,7 +229,7 @@ async function handleAnalyzeClick(tweetUrl: string, button: HTMLButtonElement) {
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
           </svg>
-          <span>Analyze</span>
+          <span>Learn</span>
         `
       }, 3000)
     } else {
@@ -195,7 +256,7 @@ async function handleAnalyzeClick(tweetUrl: string, button: HTMLButtonElement) {
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
         </svg>
-        <span>Analyze</span>
+        <span>Learn</span>
       `
     }, 3000)
   }
