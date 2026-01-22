@@ -151,6 +151,16 @@ model UserSettings {
   notificationsEnabled  Boolean  @default(true)
   reviewReminderTime    String?
   theme                 Theme    @default(LIGHT)
+  
+  // Auto-save settings (Phase 2)
+  autoSaveWords         Boolean  @default(false)
+  autoSaveLanguages     Language[] @default([EN, JA, ZH])
+  autoSaveMinWords      Int      @default(3)
+  
+  // Chrome Extension integration
+  extensionConnected    Boolean  @default(false)
+  extensionLastUsed     DateTime?
+  
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 

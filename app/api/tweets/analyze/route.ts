@@ -21,9 +21,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 2. Validate request
+    // 2. Validate request and check autoSave flag
     const body = await request.json()
     const { url } = analyzeSchema.parse(body)
+    const searchParams = request.nextUrl.searchParams
+    const autoSave = searchParams.get('autoSave') === 'true'
 
     // 3. Extract tweet ID
     const tweetId = extractTweetId(url)
@@ -125,8 +127,53 @@ export async function POST(request: NextRequest) {
       include: { words: true }
     })
 
-    // Create words separately
-    const createdWords = await Promise.all(
+    // Create words (auto-save logic)
+    let createdWords = []
+    let savedWords = []
+    
+    if (autoSave) {
+      // Get user settings for auto-save
+      const userSettings = await prisma.userSettings.findUnique({
+        where: { userId: session.user.id }
+      })
+      
+      if (userSettings?.autoSaveWords && enrichedWords.length >= userSettings.autoSaveMinWords) {
+        // Filter words by user's selected languages
+        const wordsToSave = enrichedWords.filter(word =>
+          userSettings.autoSaveLanguages.includes(extraction.language as any)
+        )
+        
+        if (wordsToSave.length > 0) {
+          // Save words
+          savedWords = await Promise.all(
+            wordsToSave.map(word =>
+              prisma.word.create({
+                data: {
+                  ...word,
+                  language: extraction.language as any,
+                  partOfSpeech: word.partOfSpeech as any,
+                  userId: session.user!.id!,
+                  tweetId: tweet.id,
+                  status: 'LEARNING'
+                }
+              })
+            )
+          )
+          
+          // Auto-sync to Notion if enabled
+          const notionIntegration = await prisma.notionIntegration.findUnique({
+            where: { userId: session.user.id }
+          })
+          
+          if (notionIntegration?.isActive && notionIntegration.autoSync) {
+            // TODO: Implement Notion sync in background
+            console.log('[Auto-save] Notion sync triggered for', savedWords.length, 'words')
+          }
+        }
+      }
+    }
+    
+    createdWords = savedWords.length > 0 ? savedWords : await Promise.all(
       enrichedWords.map(word =>
         prisma.word.create({
           data: {
@@ -151,6 +198,7 @@ export async function POST(request: NextRequest) {
         url: tweet.url
       },
       words: createdWords.map(w => ({
+        id: w.id,
         lemma: w.lemma,
         original: w.original,
         partOfSpeech: w.partOfSpeech,
@@ -160,9 +208,13 @@ export async function POST(request: NextRequest) {
           ipa: w.ipaNotation,
           hangul: w.hangulNotation
         },
-        example: w.example
+        example: w.example,
+        status: w.status,
+        savedAt: w.savedAt.toISOString()
       })),
-      analyzedAt: tweet.analyzedAt.toISOString()
+      analyzedAt: tweet.analyzedAt.toISOString(),
+      autoSaved: savedWords.length > 0,
+      savedCount: savedWords.length
     })
   } catch (error: any) {
     console.error('[API] Tweet analysis error:', error)
