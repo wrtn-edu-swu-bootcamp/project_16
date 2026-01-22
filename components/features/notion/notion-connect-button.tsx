@@ -4,13 +4,11 @@ import { Button } from '@/components/ui/button'
 
 interface NotionConnectButtonProps {
   isConnected: boolean
-  onConnect?: () => void
   onDisconnect?: () => void
 }
 
 export function NotionConnectButton({
   isConnected,
-  onConnect,
   onDisconnect
 }: NotionConnectButtonProps) {
   const handleConnect = () => {
