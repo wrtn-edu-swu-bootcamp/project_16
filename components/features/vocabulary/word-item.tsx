@@ -24,9 +24,19 @@ interface WordItemProps {
   }
   onDelete?: (id: string) => void
   onStatusChange?: (id: string, status: string) => void
+  selectMode?: boolean
+  isSelected?: boolean
+  onSelectToggle?: (id: string) => void
 }
 
-export function WordItem({ word, onDelete, onStatusChange }: WordItemProps) {
+export function WordItem({ 
+  word, 
+  onDelete, 
+  onStatusChange,
+  selectMode = false,
+  isSelected = false,
+  onSelectToggle
+}: WordItemProps) {
   const statusLabel: Record<string, string> = {
     LEARNING: '학습 중',
     MASTERED: '완료'
@@ -34,16 +44,36 @@ export function WordItem({ word, onDelete, onStatusChange }: WordItemProps) {
 
   const isLearning = word.status === 'LEARNING'
 
+  const handleCardClick = () => {
+    if (selectMode && onSelectToggle) {
+      onSelectToggle(word.id)
+    }
+  }
+
   return (
-    <Card>
+    <Card 
+      className={`${selectMode ? 'cursor-pointer' : ''} ${isSelected ? 'ring-2 ring-sky-500' : ''}`}
+      onClick={handleCardClick}
+    >
       <CardHeader>
         <div className="flex items-start justify-between">
-          <div>
-            <CardTitle>{word.lemma}</CardTitle>
-            {word.pronunciation?.ipa && (
-              <p className="text-footnote text-neutral-500">{word.pronunciation.ipa}</p>
+          <div className="flex items-start gap-3">
+            {selectMode && (
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => onSelectToggle?.(word.id)}
+                onClick={(e) => e.stopPropagation()}
+                className="mt-1 h-5 w-5 rounded border-neutral-300 text-sky-500 focus:ring-sky-500"
+              />
             )}
-            <p className="text-callout text-neutral-600">{word.translation}</p>
+            <div>
+              <CardTitle>{word.lemma}</CardTitle>
+              {word.pronunciation?.ipa && (
+                <p className="text-footnote text-neutral-500">{word.pronunciation.ipa}</p>
+              )}
+              <p className="text-callout text-neutral-600">{word.translation}</p>
+            </div>
           </div>
           <span className={`rounded-full px-3 py-1 text-footnote font-medium ${
             isLearning 
@@ -73,24 +103,26 @@ export function WordItem({ word, onDelete, onStatusChange }: WordItemProps) {
             원본 트윗 보기 →
           </a>
         )}
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => onStatusChange?.(word.id, isLearning ? 'MASTERED' : 'LEARNING')}
-            className="flex-1"
-          >
-            {isLearning ? '완료로 변경' : '학습중으로 변경'}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => onDelete?.(word.id)}
-            className="text-error"
-          >
-            삭제
-          </Button>
-        </div>
+        {!selectMode && (
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onStatusChange?.(word.id, isLearning ? 'MASTERED' : 'LEARNING')}
+              className="flex-1"
+            >
+              {isLearning ? '완료로 변경' : '학습중으로 변경'}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onDelete?.(word.id)}
+              className="text-error"
+            >
+              삭제
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
