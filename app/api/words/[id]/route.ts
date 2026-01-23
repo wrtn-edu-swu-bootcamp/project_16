@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()
@@ -15,9 +15,10 @@ export async function GET(
       )
     }
 
+    const { id } = await params
     const word = await prisma.word.findFirst({
       where: {
-        id: params.id,
+        id: id,
         userId: session.user.id
       },
       include: {
@@ -61,7 +62,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()
@@ -72,17 +73,17 @@ export async function PATCH(
       )
     }
 
+    const { id } = await params
     const body = await request.json()
     const { status } = body
 
     const word = await prisma.word.updateMany({
       where: {
-        id: params.id,
+        id: id,
         userId: session.user.id
       },
       data: {
-        status,
-        reviewDate: status === 'REVIEW' ? new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) : null
+        status
       }
     })
 
@@ -105,7 +106,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()
@@ -116,9 +117,10 @@ export async function DELETE(
       )
     }
 
+    const { id } = await params
     const result = await prisma.word.deleteMany({
       where: {
-        id: params.id,
+        id: id,
         userId: session.user.id
       }
     })

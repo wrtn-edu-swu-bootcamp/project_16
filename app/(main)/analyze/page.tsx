@@ -13,7 +13,7 @@ export default function AnalyzePage() {
         <div className="mb-8 text-center">
           <h1 className="text-title-1 mb-2">트윗 분석</h1>
           <p className="text-body text-neutral-600">
-            X 트윗 URL을 입력하면 학습할 단어를 자동으로 추출합니다
+            X 트윗의 본문이나 URL을 입력하면 학습할 단어를 자동으로 추출합니다
           </p>
         </div>
 

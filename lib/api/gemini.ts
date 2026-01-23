@@ -36,7 +36,7 @@ Requirements:
 
 export async function detectLanguage(text: string): Promise<string> {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
     
     const prompt = `Detect the language of this text. Return only one of: EN, JA, ZH, KO
     
@@ -94,7 +94,7 @@ export async function extractWords(tweetText: string): Promise<{
 }> {
   try {
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-pro',
+      model: 'gemini-2.0-flash',
       generationConfig: {
         responseMimeType: 'application/json'
       }
@@ -124,7 +124,7 @@ export async function translateWord(
   targetLang: string = 'KO'
 ): Promise<string> {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
     
     const prompt = `Translate the word "${word}" from ${sourceLang} to ${targetLang}.
 Provide the most common 1-2 meanings, separated by commas.
@@ -135,5 +135,53 @@ Return only the translation, no explanation.`
   } catch (error) {
     console.error('Translation error:', error)
     throw new Error('TRANSLATION_FAILED')
+  }
+}
+
+export async function getPronunciationAI(
+  word: string,
+  language: string
+): Promise<string | undefined> {
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    
+    let prompt = ''
+    if (language === 'JA') {
+      prompt = `Write the reading of the Japanese word "${word}" in hiragana.
+Return only the hiragana reading, nothing else. Example: "食べる" → "たべる"`
+    } else if (language === 'ZH') {
+      prompt = `Write the pinyin pronunciation of the Chinese word "${word}".
+Return only the pinyin with tone marks, nothing else. Example: "你好" → "nǐ hǎo"`
+    } else {
+      prompt = `Write the IPA pronunciation of the English word "${word}".
+Return only the IPA in slashes, nothing else. Example: "hello" → "/həˈloʊ/"`
+    }
+    
+    const result = await model.generateContent(prompt)
+    return result.response.text().trim()
+  } catch (error) {
+    console.error('Pronunciation AI error:', error)
+    return undefined
+  }
+}
+
+export async function generateExample(
+  word: string,
+  language: string
+): Promise<string | undefined> {
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    
+    const langName = language === 'JA' ? 'Japanese' : language === 'ZH' ? 'Chinese' : 'English'
+    
+    const prompt = `Create a simple example sentence using the ${langName} word "${word}".
+The sentence should be short (under 15 words) and easy to understand.
+Return only the example sentence, nothing else.`
+    
+    const result = await model.generateContent(prompt)
+    return result.response.text().trim()
+  } catch (error) {
+    console.error('Example generation error:', error)
+    return undefined
   }
 }

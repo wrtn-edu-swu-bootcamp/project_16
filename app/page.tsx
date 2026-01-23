@@ -16,7 +16,7 @@ export default async function Home() {
         </p>
         <p className="mx-auto mb-12 max-w-2xl text-body text-neutral-600">
           X(트위터)에서 외국어 트윗을 읽을 때, 모르는 단어를 자동으로 추출하고
-          학습할 수 있도록 돕는 마이크로러닝 기반 실시간 언어 학습 도구
+          학습할 수 있도록 돕는<br />마이크로러닝 기반 실시간 언어 학습 도구
         </p>
         <div className="flex justify-center gap-4">
           {session ? (

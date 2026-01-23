@@ -13,7 +13,7 @@ const updateSettingsSchema = z.object({
   theme: z.enum(['LIGHT', 'DARK', 'SYSTEM']).optional()
 })
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const session = await auth()
     if (!session?.user) {

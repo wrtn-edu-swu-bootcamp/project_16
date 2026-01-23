@@ -14,7 +14,7 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force",
-    "vercel-build": "prisma generate && prisma migrate deploy && next build"
+    "vercel-build": "prisma generate && next build"
   },
   "dependencies": {
     "@auth/core": "^0.37.4",
@@ -30,11 +30,11 @@
     "clsx": "^2.1.1",
     "framer-motion": "^11.18.2",
     "jose": "^5.9.6",
-    "next": "15.2.0",
+    "next": "^16.1.4",
     "next-auth": "^5.0.0-beta.30",
     "prisma": "^6.19.2",
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
     "tailwind-merge": "^3.4.0",
     "zod": "^4.3.5",
     "zustand": "^5.0.10"

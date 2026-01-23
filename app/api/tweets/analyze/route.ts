@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { z } from 'zod'
 import { extractTweetId, fetchTweet } from '@/lib/api/x-api'
-import { extractWords, translateWord } from '@/lib/api/gemini'
+import { extractWords, translateWord, getPronunciationAI, generateExample } from '@/lib/api/gemini'
 import { getDefinition, getPronunciation } from '@/lib/api/dictionary'
 import { prisma } from '@/lib/db/prisma'
 import { randomUUID } from 'crypto'
@@ -124,7 +124,18 @@ export async function POST(request: NextRequest) {
       extraction.words.map(async (word) => {
         const translation = await translateWord(word.lemma, extraction.language, 'KO')
         const definition = await getDefinition(word.lemma, extraction.language)
-        const pronunciation = await getPronunciation(word.lemma, extraction.language)
+        
+        // Try dictionary API first (for English), fallback to AI
+        let pronunciation = await getPronunciation(word.lemma, extraction.language)
+        let ipaNotation = pronunciation?.ipa
+        
+        // For non-English or if no IPA found, use AI
+        if (!ipaNotation || extraction.language !== 'EN') {
+          ipaNotation = await getPronunciationAI(word.lemma, extraction.language)
+        }
+        
+        // Generate example sentence using AI
+        const example = await generateExample(word.lemma, extraction.language)
 
         return {
           lemma: word.lemma,
@@ -132,9 +143,9 @@ export async function POST(request: NextRequest) {
           partOfSpeech: word.pos.toUpperCase(),
           translation,
           definition,
-          ipaNotation: pronunciation?.ipa,
+          ipaNotation,
           hangulNotation: undefined,
-          example: tweetText
+          example: example || tweetText
         }
       })
     )

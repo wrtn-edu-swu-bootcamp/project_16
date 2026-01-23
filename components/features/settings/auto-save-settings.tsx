@@ -56,7 +56,7 @@ export function AutoSaveSettings({ initialSettings }: AutoSaveSettingsProps) {
 
       setMessage({ type: 'success', text: '설정이 저장되었습니다' })
       setTimeout(() => setMessage(null), 3000)
-    } catch (error) {
+    } catch (_error) {
       setMessage({ type: 'error', text: '설정 저장에 실패했습니다' })
     } finally {
       setIsSaving(false)

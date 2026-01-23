@@ -41,7 +41,7 @@ export function FilterBar({
           상태
         </label>
         <div className="flex gap-2">
-          {['전체', 'LEARNING', 'REVIEW', 'MASTERED'].map((st) => (
+          {['전체', 'LEARNING', 'MASTERED'].map((st) => (
             <button
               key={st}
               onClick={() => onStatusChange?.(st === '전체' ? '' : st)}
@@ -53,8 +53,6 @@ export function FilterBar({
             >
               {st === 'LEARNING'
                 ? '학습중'
-                : st === 'REVIEW'
-                ? '복습필요'
                 : st === 'MASTERED'
                 ? '완료'
                 : st}
