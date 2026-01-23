@@ -65,7 +65,7 @@
 
 **선택 이유:**
 - **Next.js 15.2**: React 19 지원, App Router 안정화, Turbopack 개발 환경 지원
-- **React 19**: Server Components, Suspense, useActionState 등 최신 기능
+- **React 19**: Server Components, Suspense, useActionState 등 최신 기능 지원
 - **TypeScript 5.7**: 타입 안정성 및 개발 생산성 향상
 
 #### UI 및 스타일링
@@ -81,9 +81,9 @@
 ```
 
 **선택 이유:**
-- **Tailwind CSS v4.1.18**: 최신 안정 버전, Apple-inspired 디자인 시스템 구현
-- **Framer Motion**: 부드러운 애니메이션 및 트랜지션
-- **CVA + clsx + tailwind-merge**: 컴포넌트 변형 및 스타일 유틸리티
+- **Tailwind CSS v4.1.18**: 최신 안정 버전, Apple 스타일 디자인 시스템 구현
+- **Framer Motion**: 부드러운 애니메이션 및 화면 전환 효과
+- **CVA + clsx + tailwind-merge**: 컴포넌트 스타일 변형 및 유틸리티 도구
 
 #### 아이콘 및 폰트
 ```json
@@ -94,8 +94,8 @@
 ```
 
 **선택 이유:**
-- **Heroicons**: Tailwind 제작사의 아이콘, SF Symbols 스타일
-- **next/font**: 자동 폰트 최적화 (Pretendard, Noto Sans KR)
+- **Heroicons**: Tailwind 제작사의 아이콘 세트, SF Symbols 스타일
+- **next/font**: 자동 폰트 최적화 기능 내장 (Pretendard, Noto Sans KR)
 
 #### 상태 관리 및 데이터 페칭
 ```json
@@ -106,7 +106,7 @@
 ```
 
 **선택 이유:**
-- **TanStack Query v5**: 서버 상태 관리, Server Components 지원, 캐싱 및 동기화
+- **TanStack Query v5**: 서버 상태 관리, Server Components 지원, 자동 캐싱 및 동기화
 - **Zustand**: 간단한 클라이언트 전역 상태 관리 (UI 상태, 사용자 설정 등)
 
 ### 2.2 백엔드
@@ -119,7 +119,7 @@
 ```
 
 **선택 이유:**
-- **Next.js API Routes**: Vercel 서버리스 함수로 자동 배포
+- **Next.js API Routes**: Vercel 서버리스 함수로 자동 배포 가능
 - **App Router**: 파일 기반 라우팅, 서버 액션 지원
 
 #### 데이터베이스 ORM
@@ -132,11 +132,11 @@
 ```
 
 **선택 이유:**
-- **Prisma ORM 6**: TypeScript 우선, ESM 지원, Rust-free 클라이언트, Neon 어댑터 지원
-- **Neon Adapter**: Vercel Postgres(Neon) 최적화
+- **Prisma ORM 6**: TypeScript 우선 설계, ESM 지원, Rust 의존성 제거, Neon 어댑터 지원
+- **Neon Adapter**: Vercel Postgres(Neon) 최적화 어댑터
 
-#### 데이터베이스 (Cloud-based, No Docker)
-- **Vercel Postgres (Neon)**: 프로덕션 환경 (서버리스, 오토스케일링)
+#### 데이터베이스 (클라우드 기반, Docker 불필요)
+- **Vercel Postgres (Neon)**: 프로덕션 환경 (서버리스, 자동 확장)
 - **Neon**: 로컬 개발 환경 (무료 티어, 간편한 설정)
 - **Supabase**: 대안 옵션 (무료 티어, PostgreSQL 호스팅)
 
@@ -151,18 +151,20 @@
 ```
 
 **선택 이유:**
-- **Auth.js v5** (NextAuth.js 후속): App Router 완전 지원, 통합 `auth()` 메서드
-- **OAuth 2.0**: Google, Notion 연동
-- **Prisma Adapter**: 데이터베이스 세션 관리
+- **Auth.js v5** (NextAuth.js 후속 버전): App Router 완전 지원, 통합 `auth()` 메서드 제공
+- **OAuth 2.0**: Google, Notion 간편 연동
+- **Prisma Adapter**: 데이터베이스 기반 세션 관리
 
 ### 2.4 외부 API
 
 #### AI/NLP 및 번역
-- **Google Gemini 2.0 Flash API**: 언어 감지, 품사 태깅, 단어 추출 ($0.10/1M input tokens)
+- **Google Gemini 2.0 Flash API**: 언어 감지, 품사 태깅, 단어 추출, 번역 ($0.10/1M input tokens)
 - **Free Dictionary API**: 단어 정의 및 발음 (무료)
 
 #### 소셜 미디어
-- **X API v2**: 트윗 데이터 추출 (Free Tier: 100 reads/month)
+- **X API v2** (선택사항): 트윗 데이터 추출
+  - Chrome Extension 사용 시 불필요 (페이지에서 직접 추출)
+  - Free Tier: 100 reads/month
 
 #### 생산성 도구
 - **Notion API v1**: 사용자 단어장 자동 저장 (OAuth 2.0)
@@ -209,7 +211,7 @@
 graph TB
     subgraph Client [클라이언트]
         Browser[웹 브라우저]
-        Mobile[모바일 Safari/Chrome]
+        Extension[Chrome Extension]
     end
 
     subgraph Vercel [Vercel Platform]
@@ -231,13 +233,13 @@ graph TB
 
     subgraph ExternalAPIs [외부 API]
         GeminiAPI[Google Gemini 2.0 Flash]
-        XAPI[X API v2]
         DictAPI[Free Dictionary API]
         NotionAPI[Notion API v1]
+        XAPI[X API v2<br/>선택사항]
     end
 
     Browser --> NextApp
-    Mobile --> NextApp
+    Extension --> APIRoutes
     NextApp --> APIRoutes
     NextApp --> ServerActions
     
@@ -245,9 +247,9 @@ graph TB
     ServerActions --> Postgres
     
     APIRoutes --> GeminiAPI
-    APIRoutes --> XAPI
     APIRoutes --> DictAPI
     APIRoutes --> NotionAPI
+    APIRoutes -.-> XAPI
     
     EdgeConfig --> APIRoutes
 ```
@@ -258,18 +260,25 @@ graph TB
 sequenceDiagram
     participant User as 사용자
     participant Web as Next.js App
+    participant Ext as Chrome Extension
     participant API as API Routes
     participant DB as Postgres
     participant Gemini as Gemini API
     participant Dict as Dictionary API
     participant Notion as Notion API
 
-    User->>Web: 트윗 URL 입력
-    Web->>API: POST /api/tweets/analyze
+    alt 웹 애플리케이션
+        User->>Web: 트윗 URL/텍스트 입력
+        Web->>API: POST /api/tweets/analyze
+    else Chrome Extension
+        User->>Ext: Analyze 버튼 클릭
+        Ext->>API: POST /api/tweets/analyze
+    end
+    
     API->>DB: 트윗 캐시 확인
     
     alt 캐시 없음
-        API->>Gemini: 언어 감지 + 단어 추출
+        API->>Gemini: 언어 감지 + 단어 추출 + 번역
         Gemini-->>API: 단어 목록 (JSON)
         API->>Dict: 각 단어 정의/발음 조회
         Dict-->>API: 단어 정보
@@ -278,20 +287,25 @@ sequenceDiagram
         DB-->>API: 캐시된 결과
     end
     
-    API-->>Web: 단어 목록 반환
-    Web-->>User: 단어 카드 표시
-    
-    User->>Web: 단어 저장 요청
-    Web->>API: POST /api/words/save
-    API->>DB: 단어 저장
-    
-    opt Notion 연동 활성화
-        API->>Notion: Create Page
-        Notion-->>API: 성공
+    alt Auto-Save 활성화
+        API->>DB: User Settings 확인
+        API->>DB: 단어 자동 저장
+        opt Notion 연동 활성화
+            API->>Notion: Create Page
+            Notion-->>API: 성공
+        end
     end
     
-    API-->>Web: 저장 완료
-    Web-->>User: 성공 메시지
+    API-->>Web: 단어 목록 반환
+    API-->>Ext: 단어 목록 반환
+    
+    alt 수동 저장
+        User->>API: POST /api/words/save
+        API->>DB: 단어 저장
+        opt Notion 연동
+            API->>Notion: Create Page
+        end
+    end
 ```
 
 ### 3.3 배포 아키텍처
@@ -373,20 +387,51 @@ tweetlingo/
 │   │   │   ├── route.ts
 │   │   │   ├── [id]/
 │   │   │   │   └── route.ts
-│   │   │   └── save/
+│   │   │   ├── save/
+│   │   │   │   └── route.ts
+│   │   │   └── batch/
 │   │   │       └── route.ts
-│   │   └── notion/
-│   │       ├── connect/
-│   │       │   └── route.ts
-│   │       ├── sync/
-│   │       │   └── route.ts
-│   │       └── disconnect/
+│   │   ├── notion/
+│   │   │   ├── connect/
+│   │   │   │   └── route.ts
+│   │   │   ├── callback/
+│   │   │   │   └── route.ts
+│   │   │   ├── sync/
+│   │   │   │   └── route.ts
+│   │   │   └── disconnect/
+│   │   │       └── route.ts
+│   │   ├── settings/        # Phase 2: 사용자 설정 API
+│   │   │   └── route.ts
+│   │   └── extension/       # Phase 2: Extension 인증
+│   │       └── auth/
 │   │           └── route.ts
 │   ├── layout.tsx           # 루트 레이아웃
 │   ├── page.tsx             # 홈페이지
 │   ├── error.tsx            # 에러 페이지
 │   ├── loading.tsx          # 로딩 UI
 │   └── not-found.tsx        # 404 페이지
+├── chrome-extension/        # Phase 2: Chrome Extension
+│   ├── src/
+│   │   ├── background/
+│   │   │   └── background.ts
+│   │   ├── content-script/
+│   │   │   ├── content-script.ts
+│   │   │   └── content-script.css
+│   │   ├── popup/
+│   │   │   ├── popup.html
+│   │   │   └── popup.tsx
+│   │   ├── sidebar/
+│   │   │   ├── sidebar.html
+│   │   │   └── sidebar.tsx
+│   │   └── shared/
+│   │       ├── api-client.ts
+│   │       ├── storage.ts
+│   │       ├── types.ts
+│   │       └── utils.ts
+│   ├── manifest.json
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── vite.config.ts
 ├── components/              # React 컴포넌트
 │   ├── ui/                  # 재사용 가능한 UI 컴포넌트
 │   │   ├── button.tsx
@@ -403,9 +448,11 @@ tweetlingo/
 │   │   │   ├── word-item.tsx
 │   │   │   ├── filter-bar.tsx
 │   │   │   └── vocabulary-stats.tsx
-│   │   └── notion/
-│   │       ├── notion-connect-button.tsx
-│   │       └── notion-sync-status.tsx
+│   │   ├── notion/
+│   │   │   ├── notion-connect-button.tsx
+│   │   │   └── notion-sync-status.tsx
+│   │   └── settings/        # Phase 2
+│   │       └── auto-save-settings.tsx
 │   └── layout/              # 레이아웃 컴포넌트
 │       ├── header.tsx
 │       ├── footer.tsx
@@ -417,6 +464,9 @@ tweetlingo/
 │   │   ├── x-api.ts
 │   │   ├── dictionary.ts
 │   │   └── notion.ts
+│   ├── auth/                # Auth.js 설정
+│   │   ├── config.ts
+│   │   └── index.ts
 │   ├── db/                  # 데이터베이스 유틸
 │   │   ├── prisma.ts
 │   │   └── queries/
@@ -431,7 +481,9 @@ tweetlingo/
 │   │   ├── cn.ts            # className 병합
 │   │   ├── date.ts          # 날짜 포맷팅
 │   │   ├── language.ts      # 언어 감지/변환
-│   │   └── validation.ts    # 입력 검증
+│   │   ├── validation.ts    # 입력 검증
+│   │   ├── encryption.ts    # 토큰 암호화
+│   │   └── jwt.ts           # Phase 2: JWT 처리
 │   ├── types/               # TypeScript 타입 정의
 │   │   ├── api.ts
 │   │   ├── word.ts
@@ -462,7 +514,10 @@ tweetlingo/
 ├── tailwind.config.ts       # Tailwind CSS 설정
 ├── tsconfig.json            # TypeScript 설정
 ├── package.json
-└── README.md
+├── README.md
+├── IMPLEMENTATION_SUMMARY.md  # Phase 1 구현 요약
+├── PHASE2_SUMMARY.md          # Phase 2 구현 요약
+└── build-extension.ps1        # Extension 빌드 스크립트
 ```
 
 ### 4.2 파일 네이밍 규칙
@@ -862,6 +917,12 @@ CREATE INDEX idx_words_user_language ON words(user_id, language);
 | GET | `/api/settings` | 사용자 설정 조회 | Required |
 | PATCH | `/api/settings` | 사용자 설정 업데이트 | Required |
 
+#### Extension API (Phase 2)
+
+| 메서드 | 엔드포인트 | 설명 | 인증 |
+|--------|----------|------|------|
+| POST | `/api/extension/auth` | Extension JWT 토큰 발급 | Required |
+
 ### 6.2 API 요청/응답 스펙
 
 #### POST /api/tweets/analyze
@@ -869,7 +930,9 @@ CREATE INDEX idx_words_user_language ON words(user_id, language);
 **요청 Body:**
 ```typescript
 {
-  url: string // 트윗 URL
+  url?: string       // 트윗 URL (optional if text provided)
+  text?: string      // 트윗 텍스트 직접 입력 (optional if url provided)
+  autoSave?: boolean // 자동 저장 여부 (Phase 2, default: false)
 }
 ```
 
@@ -882,7 +945,7 @@ CREATE INDEX idx_words_user_language ON words(user_id, language);
     text: string
     author: string
     language: "EN" | "JA" | "ZH"
-    url: string
+    url?: string
   }
   words: Array<{
     lemma: string
@@ -897,6 +960,8 @@ CREATE INDEX idx_words_user_language ON words(user_id, language);
     example: string
   }>
   analyzedAt: string // ISO 8601
+  autoSaved?: boolean // Phase 2: 자동 저장 여부
+  savedCount?: number // Phase 2: 저장된 단어 수
 }
 ```
 
@@ -1057,7 +1122,91 @@ export async function POST(request: NextRequest) {
 
 ## 7. 주요 기능별 구현 설계
 
-### 7.1 트윗 분석 워크플로우
+### 7.1 Chrome Extension 아키텍처 (Phase 2)
+
+#### Extension 구조
+
+```mermaid
+graph TB
+    subgraph Extension [Chrome Extension]
+        ContentScript[Content Script<br/>X/Twitter 페이지 통합]
+        Background[Background Worker<br/>Service Worker]
+        Popup[Popup UI<br/>최근 단어 표시]
+        Sidebar[Side Panel<br/>상세 단어 보기]
+    end
+    
+    subgraph XPage [X/Twitter 페이지]
+        Tweet[트윗]
+        AnalyzeBtn[Analyze 버튼]
+    end
+    
+    subgraph API [TweetLingo API]
+        AnalyzeAPI[/api/tweets/analyze]
+        WordsAPI[/api/words]
+        AuthAPI[/api/extension/auth]
+    end
+    
+    XPage --> ContentScript
+    ContentScript --> Background
+    Background --> API
+    Background --> Popup
+    Background --> Sidebar
+```
+
+#### Content Script (콘텐츠 스크립트) 기능
+- X/Twitter 페이지의 각 트윗에 "Analyze" 버튼 자동 추가
+- MutationObserver로 동적으로 생성되는 트윗 감지
+- 트윗 텍스트 직접 추출 (X API 불필요)
+- 사용자 클릭 이벤트 처리
+- 분석 결과를 Side Panel에 표시
+
+#### Background Worker (백그라운드 워커) 기능
+- TweetLingo API와 통신 담당
+- JWT 토큰 관리 및 자동 갱신
+- chrome.storage.local에 최근 단어 캐싱
+- Content Script, Popup, Sidebar 간 메시지 중계
+- 에러 처리 및 자동 재시도 로직
+
+#### 자동 저장(Auto-Save) 로직
+
+```typescript
+// app/api/tweets/analyze/route.ts (간략화된 버전)
+export async function POST(request: NextRequest) {
+  const { text, autoSave } = await request.json()
+  const session = await auth()
+  
+  // 1. 트윗 분석
+  const words = await analyzeTweet(text, session.user.id)
+  
+  // 2. 자동 저장 처리
+  if (autoSave && session?.user) {
+    const settings = await getUserSettings(session.user.id)
+    
+    if (settings.autoSaveWords) {
+      // 언어 확인
+      const shouldSave = settings.autoSaveLanguages.includes(words.language)
+      // 최소 단어 수 확인
+      const hasEnoughWords = words.length >= settings.autoSaveMinWords
+      
+      if (shouldSave && hasEnoughWords) {
+        // 단어 저장
+        await saveWords(words, session.user.id)
+        
+        // Notion 자동 동기화 (설정된 경우)
+        if (settings.notionIntegration?.autoSync) {
+          await syncToNotion(words, session.user.id)
+        }
+        
+        return { words, autoSaved: true, savedCount: words.length }
+      }
+    }
+  }
+  
+  return { words }
+}
+```
+
+### 7.2 트윗 분석 워크플로우
 
 ```mermaid
 flowchart TD
@@ -1180,7 +1329,7 @@ export async function analyzeTweet(url: string, userId: string) {
 }
 ```
 
-### 7.2 단어 추출 및 번역 로직
+### 7.3 단어 추출 및 번역 로직
 
 #### 단어 추출 프롬프트 (Gemini)
 
@@ -1251,7 +1400,7 @@ export async function translateWord(
 }
 ```
 
-### 7.3 Notion 연동 프로세스
+### 7.4 Notion 연동 프로세스
 
 ```mermaid
 sequenceDiagram
@@ -1452,7 +1601,7 @@ export async function syncWordToNotion(
 }
 ```
 
-### 7.4 단어장 관리
+### 7.5 단어장 관리
 
 #### 필터링 및 정렬
 
@@ -2507,15 +2656,23 @@ module.exports = withPWA({
 ## 문서 정보
 
 - **작성일**: 2026년 1월 22일
-- **버전**: 1.0
+- **최종 수정일**: 2026년 1월 23일
+- **버전**: 2.0 (Phase 2 반영)
 - **작성자**: 사용자와 AI의 협업
 - **문서 유형**: 코드 아키텍처
 - **기술 스택 기준**: 2026년 1월 최신 안정 버전
 - **배포 플랫폼**: Vercel
+- **현재 상태**: Phase 1, 2 완료
+- **주요 변경사항**:
+  - Chrome Extension 아키텍처 추가
+  - Auto-Save 로직 추가
+  - Extension API 및 Settings API 추가
+  - X API 선택사항으로 변경
 - **참조 문서**:
   - [서비스_기획안.md](./서비스_기획안.md)
   - [참고자료.md](./참고자료.md)
   - [design_guide.md](./design_guide.md)
+  - [PHASE2_SUMMARY.md](../PHASE2_SUMMARY.md)
 
 ---
 
